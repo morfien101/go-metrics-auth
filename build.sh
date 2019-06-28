@@ -1,5 +1,8 @@
 #! /bin/bash
 
+DOCKER_ACCOUNT=morfien101
+PROJECT_NAME=metric-auth
+
 # build project
 rm -rf ./artifacts
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -o artifacts/metrics-auth
@@ -21,4 +24,5 @@ EOF
 
 # build docker container
 
-docker build -t morfien101/metric-auth:latest .
+docker build -t $DOCKER_ACCOUNT/$PROJECT_NAME:latest .
+docker tag $DOCKER_ACCOUNT/$PROJECT_NAME:latest $DOCKER_ACCOUNT/$PROJECT_NAME:$(docker run $DOCKER_ACCOUNT/$PROJECT_NAME:latest -v)

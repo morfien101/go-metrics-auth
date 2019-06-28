@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 
@@ -9,7 +10,25 @@ import (
 	"github.com/morfien101/go-metrics-auth/webengine"
 )
 
+var (
+	// VERSION stores the version of the application
+	VERSION = "0.0.2"
+
+	flagVersion = flag.Bool("v", false, "Shows the version")
+	flagHelp    = flag.Bool("h", false, "Shows the help menu")
+)
+
 func main() {
+	flag.Parse()
+	if *flagHelp {
+		flag.PrintDefaults()
+		return
+	}
+	if *flagVersion {
+		fmt.Println(VERSION)
+		return
+	}
+
 	config, err := config.New()
 	if err != nil {
 		log.Fatal("Failed to make config. Error:", err)

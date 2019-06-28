@@ -16,6 +16,13 @@ var (
 	}
 )
 
+// Redis is used to interface with a redis server
+type Redis interface {
+	CreateCredentials() ([]string, error)
+	ValidateAuth(username, password string) (bool, error)
+	GetEndpoint() (string, error)
+}
+
 // RedisEngine is used to handle requests to Redis
 type RedisEngine struct {
 	config config.RedisConfig
@@ -80,4 +87,19 @@ func (re *RedisEngine) GetEndpoint() (string, error) {
 		return "", fmt.Errorf("No Endpoint configured")
 	}
 	return re.config.AvailableEndpoints[rand.Intn(len(re.config.AvailableEndpoints))], nil
+}
+
+func (re *RedisEngine) ValidateAuth(username, password string) (bool, error) {
+	output, err := re.client.Get(username).Result()
+	if err == redis.Nil {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+
+	if output == password {
+		return true, nil
+	}
+	return false, nil
 }

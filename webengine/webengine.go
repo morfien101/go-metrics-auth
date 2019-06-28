@@ -3,6 +3,7 @@ package webengine
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -14,22 +15,27 @@ type WebEngine struct {
 	config      config.WebServerConfig
 	router      *mux.Router
 	server      *http.Server
-	redisEngine *redisengine.RedisEngine
+	redisEngine redisengine.Redis
 }
 
+// New creates a new WebEngine and returns it to you. You will still need to start it when you are
+// ready.
 func New(config config.WebServerConfig, redis *redisengine.RedisEngine) *WebEngine {
 	we := &WebEngine{
 		config:      config,
-		router:      mux.NewRouter(),
 		redisEngine: redis,
 	}
-
-	we.router.HandleFunc("/auth", we.getAuth).Methods("GET")
-	we.router.HandleFunc("/_status", we.getStatus).Methods("GET")
-
+	we.loadRoutes()
 	listenerAddress := we.config.ListenAddress + ":" + we.config.Port
 	we.server = &http.Server{Addr: listenerAddress, Handler: we.router}
 	return we
+}
+
+func (we *WebEngine) loadRoutes() {
+	we.router = mux.NewRouter()
+	we.router.HandleFunc("/auth", we.getAuth).Methods("GET")
+	we.router.HandleFunc("/auth", we.validateAuth).Methods("POST")
+	we.router.HandleFunc("/_status", we.getStatus).Methods("GET")
 }
 
 // ServeHTTP is used to allow the router to start accepting requests before the start is started up. This will help with testing.
@@ -104,6 +110,30 @@ func (we *WebEngine) getAuth(w http.ResponseWriter, r *http.Request) {
 
 	setContentJSON(w)
 	w.Write(b)
+}
+
+func (we *WebEngine) validateAuth(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	username, ok := q["username"]
+	if !ok || len(username) > 1 {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	password, ok := q["password"]
+	if !ok || len(password) > 1 {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	ok, err := we.redisEngine.ValidateAuth(username[0], password[0])
+	if err != nil {
+		log.Println("Error while validating credentials. Error:", err)
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+	}
 }
 
 func (we *WebEngine) getStatus(w http.ResponseWriter, r *http.Request) {
